@@ -21,6 +21,11 @@ Imports:
     utils,
     graphics,
     stats
+Remotes:
+  github::rjdemetra/rjd3toolkit, 
+  github::rjdemetra/rjd3x13, 
+  github::rjdemetra/rjd3tramoseats, 
+  github::rjdemetra/ggdemetra3
 Encoding: UTF-8
 URL: https://github.com/AQLT/rjd3report
 Roxygen: list(markdown = TRUE)
