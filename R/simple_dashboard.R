@@ -4,6 +4,7 @@
 #' Function to compute the data to produce a simple seasonal adjustment dashboard.
 #'
 #' @param x A seasonal adjustment model.
+#' @param x Context used to estimate the model.
 #' @param digits Number of digits used in the tables.
 #' @param add_obs_to_forecast Boolean indicating if the last observed values should be added to the forecast table (for the plot).
 #'
@@ -15,8 +16,8 @@
 #' @importFrom stats ts.union
 #' @importFrom utils tail
 #' @export
-simple_dashboard <- function(x, digits = 2, add_obs_to_forecast = TRUE) {
-  x <- get_jmod(x)
+simple_dashboard <- function(x, context = NULL, digits = 2, add_obs_to_forecast = TRUE) {
+  x <- get_jmod(x, context = context)
   nb_format <- paste0("%.", digits, "f")
 
   # Raw, trend, sa
