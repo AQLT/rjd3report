@@ -1,0 +1,27 @@
+Package: rjd3report
+Type: Package
+Title: Quality Assessment and Reportiing for Seasonal Adjustment
+Version: 0.1.2
+Authors@R: c(
+   person("Alain", "Quartier-la-Tente", role = c("aut", "cre"),
+                 email = "alain.quartier@yahoo.fr",
+                 comment = c(ORCID = "0000-0001-7890-3857")))
+Description: Add-in to the 'RJDemetra' package on seasonal adjustments.
+    It allows to produce quality assessments outputs (such as dashboards).
+License: EUPL
+SystemRequirements: Java (>= 17)
+Depends:
+    R (>= 3.1.1)
+Imports:
+    plotrix,
+    rjd3toolkit,
+    rjd3x13,
+    rjd3tramoseats,
+    ggdemetra3,
+    utils,
+    graphics,
+    stats
+Encoding: UTF-8
+URL: https://github.com/AQLT/rjd3report
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
