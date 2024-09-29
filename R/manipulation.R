@@ -88,19 +88,19 @@ get_jmod <- function(x, context = NULL, ...){
 }
 get_jmod.list<- function(x, context = NULL, ...) {
   if (inherits(x$results, "JD3_X13_RSLTS")) {
-    rjd3x13::jx13(ggdemetra3::raw(x$results), x$pointSpec, context = context)
+    rjd3x13::.jx13(ggdemetra3::raw(x$results), x$pointSpec, context = context)
   } else {
-    rjd3tramoseats::jtramoseats(ggdemetra3::raw(x$results), x$pointSpec, context = context)
+    rjd3tramoseats::.jtramoseats(ggdemetra3::raw(x$results), x$pointSpec, context = context)
   }
 }
 get_jmod.JD3_Object<- function(x, ...) {
   x
 }
 get_jmod.JD3_X13_OUTPUT <- function(x, context = NULL, ...) {
-  rjd3x13::jx13(ggdemetra3::raw(x), x$result_spec, context = context)
+  rjd3x13::.jx13(ggdemetra3::raw(x), x$result_spec, context = context)
 }
 get_jmod.JD3_TRAMOSEATS_OUTPUT <- function(x, context = NULL, ...) {
-  rjd3tramoseats::jtramoseats(ggdemetra3::raw(x), x$result_spec, context = context)
+  rjd3tramoseats::.jtramoseats(ggdemetra3::raw(x), x$result_spec, context = context)
 }
 
 span2text <- function(x, format = "%Y-%m") {

@@ -1,33 +1,37 @@
 
-#' Compute data for a simple seasonal adjustment
+
+#' @param digits_outliers number of digits used in the table of outliers.
+#' @param columns_outliers informations about outliers that should be printed in the summary table.
+#' Can be either a vector of characters among `c("Estimate", "Std. Error", "T-stat", "Pr(>|t|)")`;
+#' or an vector of integer: `1` corresponding to the estimate coefficient (`"Estimate"`),
+#' `2` corresponding to the standard deviation error (`"Std. Error"`),
+#' `3` corresponding to the t-statistic (`"T-stat"`) or
+#' `4` corresponding to the p-value (`"Pr(>|t|)"`).
+#' By default only the estimate coefficients and the t-statistics are printed
+#' (`columns_outliers = c("Estimate", "T-stat")`).
+#' @param n_last_outliers number of last outliers to be printed (by default `n_last_outliers = 4`).
+#' @param order_outliers order of the outliers in case of several outliers at the same date.
 #'
-#' Functions to compute the data to produce a simple seasonal adjustment dashboard.
-#' `simple_dashboard2()` is a slightly variation of `simple_dashboard()` with smaller description
-#' text to include a table with last outliers.
 #'
-#' @param x A seasonal adjustment model.
-#' @param x Context used to estimate the model.
-#' @param digits Number of digits used in the tables.
-#' @param scale_var_decomp boolean indicating if the variance decomposition table should be rescaled to 100.
-#' @param remove_others_contrib boolean indication if the "Others" contribution (i.e.: the pre-adjustment contribution)
-#' should be removed from the variance decomposition table.
-#' @param add_obs_to_forecast Boolean indicating if the last observed values should be added to the forecast table (for the plot).
-#'
-#' @examples
-#' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
-#' sa_model <- rjd3x13::x13(data)
-#' dashboard_data <- simple_dashboard(sa_model)
-#' plot(dashboard_data, main = "Simple dashboard")
-#' dashboard_data2 <- simple_dashboard2(sa_model)
-#' plot(dashboard_data2, main = "Simple dashboard with outliers")
-#' @importFrom stats ts.union
-#' @importFrom utils tail
+#' @rdname simple_dashboard
 #' @export
-simple_dashboard <- function(x, context = NULL, digits = 2,
-                             scale_var_decomp = FALSE,
-                             remove_others_contrib = FALSE, add_obs_to_forecast = TRUE) {
+simple_dashboard2 <- function(x, context = NULL, digits = 2,
+                              scale_var_decomp = FALSE,
+                              remove_others_contrib = FALSE,
+                              digits_outliers = digits,
+                              columns_outliers = c("Estimate", "T-stat"),
+                              n_last_outliers = 4,
+                              order_outliers = c("AO", "LS", "TC", "SO"),
+                              add_obs_to_forecast = TRUE) {
   x <- get_jmod(x, context = context)
   nb_format <- paste0("%.", digits, "f")
+  if (is.numeric(columns_outliers)) {
+    columns_outliers <- c("Estimate", "Std. Error", "T-stat", "Pr(>|t|)")[columns_outliers]
+  } else {
+    columns_outliers <- match.arg(columns_outliers,
+                                  c("Estimate", "Std. Error", "T-stat", "Pr(>|t|)"),
+                                  several.ok = TRUE)
+  }
 
   # Raw, trend, sa
   data_plot <- list(y = ggdemetra3::raw(x),
@@ -65,7 +69,8 @@ simple_dashboard <- function(x, context = NULL, digits = 2,
                  ifelse(is_easter, "Easter effect",
                         "No easter effect"))
   # nb outliers
-  out <- sprintf("%s detected outliers", rjd3toolkit::result(x, "regression.nout"))
+  nout <- rjd3toolkit::result(x, "regression.nout")
+  out <- sprintf("%s detected outliers", nout)
   summary_text <- c(est_span, transform, tde, out, arima_ord)
 
 
@@ -95,7 +100,6 @@ simple_dashboard <- function(x, context = NULL, digits = 2,
     var_decomp[i_total] <- 1
   }
   var_decomp <- var_decomp * 100
-
   # Tests on linearised series
   liste_ind_seas <- c("F-test" = "diagnostics.seas-lin-f",
                       "QS-test" = "diagnostics.seas-lin-qs",
@@ -158,6 +162,25 @@ simple_dashboard <- function(x, context = NULL, digits = 2,
     colnames(decomp_stats)[ncol(qstats)+1] <- "   "
   }
 
+  outliers <- outliers_color <- NULL
+  if (nout > 0) {
+    outliers <- do.call(rbind, rjd3toolkit::user_defined(x, sprintf("regression.out(%i)", seq_len(nout))))
+    # sort outliers by dates
+    dates_out <- outliers_to_dates(rownames(outliers))
+    dates_out$type <- factor(dates_out$type, levels = order_outliers, ordered = TRUE)
+    outliers <- outliers[order(dates_out$year, dates_out$period, dates_out$type, decreasing = TRUE), , drop = FALSE]
+    outliers <- outliers[seq_len(min(n_last_outliers, nrow(outliers))), columns_outliers, drop = FALSE]
+    outliers <- round(outliers, digits_outliers)
+    outliers <- data.frame(rownames(outliers),
+                           outliers)
+    colnames(outliers)[1] <- sprintf("Last %i outliers", n_last_outliers)
+    rownames(outliers) <- NULL
+
+    outliers_color <-
+      cbind(rep("grey90", nrow(outliers)),
+            matrix("white", ncol = ncol(outliers) - 1, nrow = nrow(outliers)))
+  }
+
   res <- list(main_plot = data_plot,
               siratio_plot = ggdemetra3::siratio(x),
               summary_text = summary_text,
@@ -165,56 +188,50 @@ simple_dashboard <- function(x, context = NULL, digits = 2,
                                   colors = decomp_stats_color),
               residuals_tests = list(table = all_tests,
                                      colors = color_test),
-              last_date = last_date)
-  class(res) <- c("simple_dashboard")
+              last_date = last_date,
+              outliers = list(table = outliers,
+                              colors = outliers_color))
+  class(res) <- c("simple_dashboard2")
   res
 }
-#' Plot a simple seasonal adjustment dashboard
-#'
-#' Function to plot a simple dashboard of a seasonal adjustment model.
-#'
-#' @param x A `simple_dashboard` object.
-#' @param main Main title.
-#' @param subtitle Subtitle.
-#' @param reference_date Boolean indicating if the reference date should be printed.
-#' @param color_series Color of the raw time series, the trend and the seasonally adjusted component.
-#' @param ... Other unused parameters.
-#'
-#' @examples
-#' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
-#' sa_model <- rjd3x13::x13(data)
-#' dashboard_data <- simple_dashboard(sa_model)
-#' plot(dashboard_data, main = "Simple dashboard")
-#' dashboard_data2 <- simple_dashboard2(sa_model)
-#' plot(dashboard_data2, main = "Simple dashboard with outliers")
-#' @seealso \code{\link{simple_dashboard}}.
-#' @importFrom graphics box layout legend mtext par plot.new text
+outliers_to_dates <- function(name_out){
+  dates_out <- gsub("\\w. \\((.*)\\)", "\\1", name_out)
+  types <- gsub(" .*", "", name_out)
+  dates <- do.call(rbind, strsplit(dates_out, "-"))
+  periods <- as.numeric(as.roman(dates[,1]))
+  years <- as.numeric(dates[,2])
+  data.frame(year = years, period = periods, type = types)
+}
+#' @rdname plot.simple_dashboard
 #' @export
-plot.simple_dashboard <- function(x, main = "Simple Dashboard",
-                                  subtitle = NULL,
-                                  color_series = c(y = "#F0B400", t = "#1E6C0B", sa = "#155692"),
-                                  reference_date = TRUE,...){
+plot.simple_dashboard2 <- function(x, main = "Simple Dashboard with outliers",
+                                   subtitle = NULL,
+                                   color_series = c(y = "#F0B400", t = "#1E6C0B", sa = "#155692"),
+                                   reference_date = TRUE,...){
   main_plot = x$main_plot
   siratio_plot = x$siratio_plot
   summary_text = x$summary_text
   decomp_stats = x$decomp_stats
   residuals_tests = x$residuals_tests
   last_date = x$last_date
+  outliers = x$outliers
 
   def.par <- par(no.readonly = TRUE)
 
   nf <- layout(matrix(c(rep(1,8),
-                        rep(2,4),rep(3,4),
+                        rep(2,4), rep(3,4),
                         rep(4,3), rep(5,5),
-                        rep(4,3), rep(6,5)),ncol = 8,byrow = T),
-               heights = c(0.2,2.5,0.5,1.3))
+                        rep(4,3), rep(6,5),
+                        rep(7,3), rep(8,5)),ncol = 8,byrow = T),
+               heights = c(0.2,2.2,0.5,0.2,0.7))
+  # layout.show(nf)
   on.exit({
     par(def.par)
   })
 
   oma.saved <- par("oma")
   par(oma = rep.int(0, 4))
-  par(oma = oma.saved)
+  # par(oma = oma.saved)
   o.par <- par(mar = rep.int(0, 4))
   plot.new()
   box(which = "inner")
@@ -236,15 +253,23 @@ plot.simple_dashboard <- function(x, main = "Simple Dashboard",
          pch = NA_integer_,
          inset = c(0,1), xpd = TRUE, horiz=TRUE, bty = "n")
   par(mai = c(0.0, 0.2, 0.2, 0.4))
-  ggdemetra3::siratioplot(siratio_plot,main = NULL)
+  ggdemetra3::siratioplot(siratio_plot, main = NULL)
 
 
   par(mai = c(0.4, 0.2, 0.2, 0))
+  par(mar = rep.int(0.4, 4))
   plot.new()
   # box()
-  legend("topleft", legend = c(NA,summary_text),
-         bty = "n", text.font =  2, inset = c(0))
+  legend("topleft", legend = c(NA, summary_text),
+         bty = "n", text.font =  2, inset = c(0),
+         cex = 0.95,
+         xpd = TRUE)
 
+  # plot.new()
+  # # box()
+  # legend("right", legend = c(arima_ord),
+  #        bty = "n", text.font =  2, inset = c(0),
+  #        cex = 0.8)
 
   par(mar = rep(rep(2, 4)))
   par(mai = c(0, 0.2, 0, 0.2))
@@ -255,11 +280,28 @@ plot.simple_dashboard <- function(x, main = "Simple Dashboard",
                          decomp_stats$table, bty = "o", display.rownames = FALSE, hlines = TRUE,
                          vlines = TRUE,bg = decomp_stats$colors, xjust = 0.5, yjust = 1)
 
+  # Empty plot
+  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
+       axes = FALSE)
+
   plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
        axes = FALSE)
   par(mai = c(0, 0.2, 0.2, 0.2))
 
-  plotrix::addtable2plot(0.5, 0.6,
+  if(! is.null(outliers$table)) {
+    plotrix::addtable2plot(0.5, 0.7,
+                           outliers$table,
+                           bg = outliers$colors,
+                           bty = "o",
+                           display.rownames = FALSE, hlines = TRUE,
+                           vlines = TRUE,
+                           xjust = 0.5, yjust = 0.5)
+  }
+
+  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
+       axes = FALSE)
+  par(mai = c(0, 0.2, 0.2, 0.2))
+  plotrix::addtable2plot(0.5, 0.8,
                          residuals_tests$table, bty = "o",
                          display.rownames = TRUE, hlines = TRUE,
                          vlines = TRUE,
