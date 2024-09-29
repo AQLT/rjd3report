@@ -6,7 +6,7 @@
 #' text to include a table with last outliers.
 #'
 #' @param x A seasonal adjustment model.
-#' @param x Context used to estimate the model.
+#' @param context Context used to estimate the model.
 #' @param digits Number of digits used in the tables.
 #' @param scale_var_decomp boolean indicating if the variance decomposition table should be rescaled to 100.
 #' @param remove_others_contrib boolean indication if the "Others" contribution (i.e.: the pre-adjustment contribution)
@@ -25,7 +25,8 @@
 #' @export
 simple_dashboard <- function(x, context = NULL, digits = 2,
                              scale_var_decomp = FALSE,
-                             remove_others_contrib = FALSE, add_obs_to_forecast = TRUE) {
+                             remove_others_contrib = FALSE,
+                             add_obs_to_forecast = TRUE) {
   x <- get_jmod(x, context = context)
   nb_format <- paste0("%.", digits, "f")
 

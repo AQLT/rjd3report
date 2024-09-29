@@ -28,7 +28,9 @@ simple_dashboard2(
 )
 }
 \arguments{
-\item{x}{Context used to estimate the model.}
+\item{x}{A seasonal adjustment model.}
+
+\item{context}{Context used to estimate the model.}
 
 \item{digits}{Number of digits used in the tables.}
 
