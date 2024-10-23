@@ -58,3 +58,10 @@ plot(dashboard_data, main = "Simple dashboard")
 ```
 
 <img src="man/figures/README-simple_dash-1.png" style="display: block; margin: auto;" />
+
+``` r
+dashboard_data2 <- simple_dashboard2(sa_mod)
+plot(dashboard_data2, main = "Simple dashboard with outlier")
+```
+
+<img src="man/figures/README-simple_dash-2.png" style="display: block; margin: auto;" />

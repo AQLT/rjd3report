@@ -87,6 +87,8 @@ get_jmod <- function(x, context = NULL, ...){
   UseMethod("get_jmod", x)
 }
 get_jmod.list<- function(x, context = NULL, ...) {
+  if (is.null(x$results))
+    return(NULL)
   if (inherits(x$results, "JD3_X13_RSLTS")) {
     rjd3x13::.jx13(ggdemetra3::raw(x$results), x$pointSpec, context = context)
   } else {

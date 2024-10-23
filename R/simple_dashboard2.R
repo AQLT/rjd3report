@@ -24,6 +24,8 @@ simple_dashboard2 <- function(x, context = NULL, digits = 2,
                               order_outliers = c("AO", "LS", "TC", "SO"),
                               add_obs_to_forecast = TRUE) {
   x <- get_jmod(x, context = context)
+  if (is.null(x))
+    return(NULL)
   nb_format <- paste0("%.", digits, "f")
   if (is.numeric(columns_outliers)) {
     columns_outliers <- c("Estimate", "Std. Error", "T-stat", "Pr(>|t|)")[columns_outliers]
@@ -55,7 +57,7 @@ simple_dashboard2 <- function(x, context = NULL, digits = 2,
   ntd <- rjd3toolkit::result(x, "regression.ntd") # nombre de JO
   is_easter <- !is.null(rjd3toolkit::result(x, "nmh"))
 
-  est_span <- sprintf("Estimation span: %s to %s\n%s observations",
+  est_span <- sprintf("Estimation span: %s to %s (%s obs)",
                       span2text(rjd3toolkit::result(x, "regression.espan.start")),
                       span2text(rjd3toolkit::result(x, "regression.espan.end")),
                       rjd3toolkit::result(x, "regression.espan.n")
@@ -63,11 +65,11 @@ simple_dashboard2 <- function(x, context = NULL, digits = 2,
   transform <- ifelse(rjd3toolkit::result(x, "log") == 0,
                       "Series hasn't been transformed",
                       "Series has been log-transformed")
-  tde <- sprintf("%s\n%s",
+  tde <- sprintf("%s, %s",
                  ifelse(ntd==0, "No trading days effect",
                         sprintf("Trading days effect (%s)", ntd)),
-                 ifelse(is_easter, "Easter effect",
-                        "No easter effect"))
+                 ifelse(is_easter, "easter effect",
+                        "no easter effect"))
   # nb outliers
   nout <- rjd3toolkit::result(x, "regression.nout")
   out <- sprintf("%s detected outliers", nout)
@@ -191,7 +193,7 @@ simple_dashboard2 <- function(x, context = NULL, digits = 2,
               last_date = last_date,
               outliers = list(table = outliers,
                               colors = outliers_color))
-  class(res) <- c("simple_dashboard2")
+  class(res) <- c("simple_dashboard")
   res
 }
 outliers_to_dates <- function(name_out){
@@ -201,116 +203,4 @@ outliers_to_dates <- function(name_out){
   periods <- as.numeric(as.roman(dates[,1]))
   years <- as.numeric(dates[,2])
   data.frame(year = years, period = periods, type = types)
-}
-#' @rdname plot.simple_dashboard
-#' @export
-plot.simple_dashboard2 <- function(x, main = "Simple Dashboard with outliers",
-                                   subtitle = NULL,
-                                   color_series = c(y = "#F0B400", t = "#1E6C0B", sa = "#155692"),
-                                   reference_date = TRUE,...){
-  main_plot = x$main_plot
-  siratio_plot = x$siratio_plot
-  summary_text = x$summary_text
-  decomp_stats = x$decomp_stats
-  residuals_tests = x$residuals_tests
-  last_date = x$last_date
-  outliers = x$outliers
-
-  def.par <- par(no.readonly = TRUE)
-
-  nf <- layout(matrix(c(rep(1,8),
-                        rep(2,4), rep(3,4),
-                        rep(4,3), rep(5,5),
-                        rep(4,3), rep(6,5),
-                        rep(7,3), rep(8,5)),ncol = 8,byrow = T),
-               heights = c(0.2,2.2,0.5,0.2,0.7))
-  # layout.show(nf)
-  on.exit({
-    par(def.par)
-  })
-
-  oma.saved <- par("oma")
-  par(oma = rep.int(0, 4))
-  # par(oma = oma.saved)
-  o.par <- par(mar = rep.int(0, 4))
-  plot.new()
-  box(which = "inner")
-
-  box()
-  text(0.5, 0.5, main, font = 2,cex = 1.2)
-  par(o.par)
-
-  par(mai = c(0, 0.4, 0.2, 0.1))
-  stats::plot.ts(main_plot,plot.type = "single",
-                 col = rep(color_series, 2),
-                 lty = rep(c(1,2), each = 3),
-                 xlab = NULL,
-                 ylab = NULL,
-                 main = NULL
-  )
-  legend("bottomright", legend = names(color_series),
-         col = color_series, lty = 1,
-         pch = NA_integer_,
-         inset = c(0,1), xpd = TRUE, horiz=TRUE, bty = "n")
-  par(mai = c(0.0, 0.2, 0.2, 0.4))
-  ggdemetra3::siratioplot(siratio_plot, main = NULL)
-
-
-  par(mai = c(0.4, 0.2, 0.2, 0))
-  par(mar = rep.int(0.4, 4))
-  plot.new()
-  # box()
-  legend("topleft", legend = c(NA, summary_text),
-         bty = "n", text.font =  2, inset = c(0),
-         cex = 0.95,
-         xpd = TRUE)
-
-  # plot.new()
-  # # box()
-  # legend("right", legend = c(arima_ord),
-  #        bty = "n", text.font =  2, inset = c(0),
-  #        cex = 0.8)
-
-  par(mar = rep(rep(2, 4)))
-  par(mai = c(0, 0.2, 0, 0.2))
-
-  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-       axes = FALSE)
-  plotrix::addtable2plot(0.5, 0,
-                         decomp_stats$table, bty = "o", display.rownames = FALSE, hlines = TRUE,
-                         vlines = TRUE,bg = decomp_stats$colors, xjust = 0.5, yjust = 1)
-
-  # Empty plot
-  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-       axes = FALSE)
-
-  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-       axes = FALSE)
-  par(mai = c(0, 0.2, 0.2, 0.2))
-
-  if(! is.null(outliers$table)) {
-    plotrix::addtable2plot(0.5, 0.7,
-                           outliers$table,
-                           bg = outliers$colors,
-                           bty = "o",
-                           display.rownames = FALSE, hlines = TRUE,
-                           vlines = TRUE,
-                           xjust = 0.5, yjust = 0.5)
-  }
-
-  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-       axes = FALSE)
-  par(mai = c(0, 0.2, 0.2, 0.2))
-  plotrix::addtable2plot(0.5, 0.8,
-                         residuals_tests$table, bty = "o",
-                         display.rownames = TRUE, hlines = TRUE,
-                         vlines = TRUE,
-                         bg = residuals_tests$colors,
-                         xjust = 0.5, yjust = 0.5)
-  if (reference_date)
-    mtext(sprintf("Reference Date: %s",last_date), side = 3, line = -3,
-          outer = TRUE,font = 3,cex = 0.7,at = 0.95, adj = 1)
-  mtext(subtitle, side = 3, line = -3,
-        outer = TRUE,font = 3,cex = 0.7,at = 0.1, adj = 1)
-  invisible()
 }
