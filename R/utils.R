@@ -1,4 +1,4 @@
-title <- function(x, format){
+title_ <- function(x, format){
   underline(bold(x, format = format), format = format)
 }
 bold <- function(x, format){
