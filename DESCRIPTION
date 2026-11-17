@@ -1,32 +1,45 @@
 Package: rjd3report
 Type: Package
-Title: Quality Assessment and Reportiing for Seasonal Adjustment
-Version: 0.1.2
+Title: Quality Assessment and Reporting for Seasonal Adjustment
+Version: 0.2.0
 Authors@R: c(
-   person("Alain", "Quartier-la-Tente", role = c("aut", "cre"),
+   person("Alain", "Quartier-la-Tente", role = c("aut", "cre", "cph"),
                  email = "alain.quartier@yahoo.fr",
                  comment = c(ORCID = "0000-0001-7890-3857")))
-Description: Add-in to the 'RJDemetra' package on seasonal adjustments.
-    It allows to produce quality assessments outputs (such as dashboards).
+Description: Add-in to the 'rjd3x13' and 'rjd3tramoseats' packages on seasonal adjustments.
+    It allows to produce quality assessments outputs (such as dashboards) and
+    reports (with 'Quarto') describing seasonal adjustment models.
 License: EUPL
-SystemRequirements: Java (>= 17)
+SystemRequirements: Java (>= 21), Quarto (optional, to render reports)
 Depends:
-    R (>= 3.1.1)
+    R (>= 4.1.0)
 Imports:
     plotrix,
-    rjd3toolkit (>= 3.2.4),
-    rjd3x13 (>= 3.2.3),
-    rjd3tramoseats (>= 3.2.3),
+    rJava,
+    rjd3toolkit (>= 3.9.0),
+    rjd3x13 (>= 3.9.0),
+    rjd3tramoseats (>= 3.9.0),
     ggdemetra3,
+    knitr,
+    tinytable (>= 0.19.0),
     utils,
+    ggplot2,
+    grid,
+    gridExtra,
+    gtable,
+    patchwork,
     graphics,
     stats
+Suggests:
+    quarto,
+    rjd3workspace (>= 3.9.0)
 Remotes:
-  github::rjdverse/rjd3toolkit, 
-  github::rjdverse/rjd3x13, 
-  github::rjdverse/rjd3tramoseats, 
+  github::rjdverse/rjd3toolkit,
+  github::rjdverse/rjd3x13,
+  github::rjdverse/rjd3tramoseats,
+  github::rjdverse/rjd3workspace,
   github::AQLT/ggdemetra3
 Encoding: UTF-8
 URL: https://github.com/AQLT/rjd3report
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
+Config/roxygen2/version: 8.1.1
