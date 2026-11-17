@@ -28,10 +28,10 @@ The dashboard is divided into four sections:
 \item Residual seasonality: qs (auto-correlations at seasonal lags) and f (Friedman) test on seasonal adjusted series. Colors: red if p-value \eqn{\le} 0.01, yellow if 0.01 < p-value \eqn{\le} 0.05 and green if p-value > 0.05.
 \item Residual trading-days effects: f (Friedman) test on seasonal adjusted serie.  Colors: red if p-value \eqn{\le} 0.01, yellow if 0.01 < p-value \eqn{\le} 0.05 and green if p-value > 0.05.
 \item Independence of RegARIMA residuals: Ljung-Box test. Colors: red if p-value \eqn{\le} 0.01, yellow if 0.01 < p-value \eqn{\le} 0.05 and green if p-value > 0.05.
-\item Recent outliers on last (t) and penultimate (t-1) observation. Colors: Red if there is an extreme value (only for X13: when table C17 equals to 0), yellow if there is an outlier in the RegARIMA model and green otherwise.
+\item Recent outliers on last (t) and penultimate (t-1) observation. Colors: Red (\code{"bad"}) if there is an extreme value (only for X13: when table C17 equals to 0), yellow (\code{"uncertain"}) if there is an outlier in the RegARIMA model and green (\code{"good"}) otherwise.
 }
 \item Estimated Patterns and Anticipated Movements (middle panel): estimated trading day, moving holiday and seasonal pattern.  It presents expected movement in unadjusted series based on the current and previous period.
-\item Net Effect of Seasonal Adjustment (bottom panel): movement in the raw series, compared to typical ranges centered around “neutral” value (when the seasonal adjusted series of the last period is equal to the penultimate period).  It also shows the movement in the seasonally adjusted series, compared to typical ranges.
+\item Net Effect of Seasonal Adjustment (bottom panel): movement in the raw series, compared to typical ranges centered around "neutral" value (when the seasonal adjusted series of the last period is equal to the penultimate period).  It also shows the movement in the seasonally adjusted series, compared to typical ranges.
 }
 }
 \examples{
