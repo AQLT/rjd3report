@@ -1,97 +1,58 @@
-summary_diagnostics <- function(x, digits = 2, decimal.mark = getOption("OutDec"),
-                                colours = c(`1` = "red", `2` = "yellow", `3` = "#A0CD63")){
-
+summary_diagnostics <- function(x, digits = 2, decimal.mark = getOption("OutDec")) {
   m7 <- rjd3toolkit::result(x, "m-statistics.m7")
+  m7_status <- NULL
   if (!is.null(m7)) {
-    m7_c <- cut(m7,
-                breaks = c(0, 1.25, 1.75, Inf),
-                labels = FALSE, right = FALSE)
-    m7_c <- (3:1)[m7_c]
+    m7_status <- if (m7 < 1.25) "good" else if (m7 < 1.75) "uncertain" else "bad"
     names(m7) <- "Adjustability (M7)"
-  } else {
-    m7 <- m7_c <- NULL
   }
-
   # residuals tests
   liste_ind <- c(
     "Residual Seasonality (qs-test on sa)" = "diagnostics.seas-sa-qs",
     "Residual Seasonality (f-test on sa)" = "diagnostics.seas-sa-f",
     "Residual Trading-days effects (f-test on sa)" = "diagnostics.td-sa-all",
-    # "Recurring outliers"
-    # "Evolutive seasonality test" = "diagnostics.seas-evolutive"
     "ARIMA autocorrelation (lb test)" = "residuals.lb"
   )
-  # rjd3toolkit::seasonality_combined(y)$evolutive$test[[2]]
-  residuals_tests <- unlist(lapply(rjd3toolkit::user_defined(x, liste_ind), `[[`, 2))
-  names(residuals_tests) <- names(liste_ind)
+  residuals_tests <- unlist(lapply(rjd3toolkit::user_defined(x, liste_ind), `[[`, "pvalue"))
+  names(residuals_tests) <- names(liste_ind)[seq_along(residuals_tests)]
 
-  residuals_tests_c <- cut(residuals_tests,
-                           breaks = c(0, 0.01, 0.05, Inf),
-                           labels = FALSE, right = FALSE)
-  recent_outlier <- rbind(description_outlier(x, 0),description_outlier(x, 1))
-  rownames(recent_outlier) <- c("Recent Outliers (current period)",
-                                "Recent Outliers (previous period)")
+  recent_outlier <- c("Recent Outliers (current period)" = recent_outlier_status(x, 0),
+                      "Recent Outliers (previous period)" = recent_outlier_status(x, 1))
+  value <- c(format_num(c(m7, residuals_tests), digits = digits, decimal.mark = decimal.mark),
+             c(good = "Regular", uncertain = "Outlier", bad = "Extreme")[recent_outlier])
+  names(value) <- c(names(m7), names(residuals_tests), names(recent_outlier))
+  status <- c(m7_status, status_residual(residuals_tests), recent_outlier)
 
-  value <- c(m7,
-             residuals_tests,
-             recent_outlier[,1]
-  )
-  value[1:length(c(m7, residuals_tests))] <-
-    formatC(c(m7, residuals_tests),
-            format = "f", digits = digits,
-            decimal.mark = decimal.mark)
-  colour <- colours[c(m7_c,
-                      residuals_tests_c,
-                      recent_outlier[,2])]
-
-  summary_diagnostics <- data.frame(
-    Value = value, Indicator = "",
-    Colour = colour,
-    row.names = names(value),
-    stringsAsFactors = FALSE)
-  class(summary_diagnostics) <- c("summary_diagnostics", class(summary_diagnostics))
-
-  summary_diagnostics
+  res <- data.frame(Value = value, Indicator = "", Status = status,
+                    row.names = names(value), stringsAsFactors = FALSE)
+  class(res) <- c("summary_diagnostics", class(res))
+  res
 }
-description_outlier <- function(x, nb_previous_periods = 0){
-  regression_var_names <- rjd3toolkit::user_defined(x, "preprocessing.model.description")[[1]]
-  y <- rjd3toolkit::user_defined(x, c("y"))[[1]]
-  freq <- frequency(y)
-  date <- tail(time(y), nb_previous_periods + 1)[1]
-  is_outlier <- length(grep(date_r2jd(date, freq), regression_var_names)) > 1
+# Status of the observation `nb_previous_periods` periods before the last one:
+# "uncertain" if there is an outlier in the RegARIMA model, "bad" if it is an extreme value
+# (X-13: table C17 equals to 0) and "good" otherwise.
+recent_outlier_status <- function(x, nb_previous_periods = 0) {
+  y <- rjd3toolkit::user_defined(x, "y")[[1]]
+  date <- start(ts(0, start = tail(time(y), nb_previous_periods + 1)[1], frequency = frequency(y)))
+  regression_var_names <- rjd3toolkit::result(x, "regression.description")
+  out_names <- grep("^(AO|LS|TC|SO) \\(", regression_var_names, value = TRUE)
+  is_outlier <- FALSE
+  if (length(out_names) > 0) {
+    dates_out <- outliers_to_dates(out_names)
+    is_outlier <- any(dates_out$year == date[1] & dates_out$period == date[2])
+  }
   c17 <- rjd3toolkit::user_defined(x, "decomposition.c17")[[1]]
-  if (!is.null(c17)) {
-    last_c17 <- window(c17, start = date)[1]
-  } else {
-    last_c17 <- NULL
-  }
-
+  is_extreme <- !is.null(c17) && isTRUE(all.equal(window(c17, start = date)[1], 0))
   if (is_outlier) {
-    value <- c("Outlier", 1)
-  }else if (isTRUE(all.equal(last_c17, 0))) {
-    value <- c("Extreme", 2)
-  }else{
-    value <- c("Regular", 3)
+    "uncertain"
+  } else if (is_extreme) {
+    "bad"
+  } else {
+    "good"
   }
-  value
-}
-recurring_outlier <- function(x){
-  regression_var_names <- rownames(x$regarima$regression.coefficients)
-  outliers <- grep("(AO)|(TC)|(LS)|(SO)", regression_var_names, value = TRUE)
-  0
-}
-date_r2jd <- function(date, frequency){
-  date_v <- start(ts(0, start = date, frequency = frequency))
-  if (frequency == 12) {
-    period <- date_v[2]
-  }else{
-    period <- as.roman(date_v[2])
-  }
-  sprintf("%s-%i", period, date_v[1])
 }
 #'@exportS3Method NULL
-plot.summary_diagnostics <- function(x, ...){
-  bg_color <- cbind("white", x$Colour)
+plot.summary_diagnostics <- function(x, colors = dashboard_colors(), ...){
+  bg_color <- cbind("white", status2color(x$Status, colors))
 
   row_names <- rownames(x)
   max_str_width <- max(strwidth(row_names))
@@ -112,7 +73,6 @@ plot.summary_diagnostics <- function(x, ...){
   title("Summary of Key Diagnostics", line = -3)
 }
 
-#' @importFrom RJDemetra x13 x13_spec
 #' @importFrom graphics arrows axis barplot box layout legend lines mtext par plot plot.new strwidth text title points
 #' @importFrom stats cor cycle deltat frequency lag na.omit pchisq pt sd start time ts ts.union window
 #' @importFrom utils as.roman head read.csv tail globalVariables head tail

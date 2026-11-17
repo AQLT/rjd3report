@@ -86,23 +86,30 @@ sarima_orders_ch <- function(x, ...) {
 get_jmod <- function(x, context = NULL, ...){
   UseMethod("get_jmod", x)
 }
-get_jmod.list<- function(x, context = NULL, ...) {
+#' @exportS3Method
+get_jmod.list <- function(x, context = NULL, ...) {
   if (is.null(x$results))
     return(NULL)
+  spec <- x$resultSpec
+  if (is.null(spec))
+    spec <- x$pointSpec
   if (inherits(x$results, "JD3_X13_RSLTS")) {
-    rjd3x13::.jx13(ggdemetra3::raw(x$results), x$pointSpec, context = context)
+    rjd3x13::jx13(ggdemetra3::raw(x$results), spec, context = context)
   } else {
-    rjd3tramoseats::.jtramoseats(ggdemetra3::raw(x$results), x$pointSpec, context = context)
+    rjd3tramoseats::jtramoseats(ggdemetra3::raw(x$results), spec, context = context)
   }
 }
-get_jmod.JD3_Object<- function(x, ...) {
+#' @exportS3Method
+get_jmod.JD3_Object <- function(x, ...) {
   x
 }
+#' @exportS3Method
 get_jmod.JD3_X13_OUTPUT <- function(x, context = NULL, ...) {
-  rjd3x13::.jx13(ggdemetra3::raw(x), x$result_spec, context = context)
+  rjd3x13::jx13(ggdemetra3::raw(x), x$result_spec, context = context)
 }
+#' @exportS3Method
 get_jmod.JD3_TRAMOSEATS_OUTPUT <- function(x, context = NULL, ...) {
-  rjd3tramoseats::.jtramoseats(ggdemetra3::raw(x), x$result_spec, context = context)
+  rjd3tramoseats::jtramoseats(ggdemetra3::raw(x), x$result_spec, context = context)
 }
 
 span2text <- function(x, format = "%Y-%m") {

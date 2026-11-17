@@ -1,19 +1,43 @@
-
 #' Compute data for a simple seasonal adjustment
 #'
 #' Functions to compute the data to produce a simple seasonal adjustment dashboard.
-#' `simple_dashboard2()` is a slightly variation of `simple_dashboard()` with smaller description
-#' text to include a table with last outliers.
+#' `simple_dashboard2()` is a shortcut of `simple_dashboard(n_last_outliers = 4)`: the
+#' description text is smaller to include a table with the last outliers.
+#' The dashboard can be plotted with base R ([plot.simple_dashboard()]) or with \pkg{ggplot2}
+#' ([autoplot.simple_dashboard()]).
 #'
 #' @param x A seasonal adjustment model.
 #' @param context Context used to estimate the model.
-#' @param digits Number of digits used in the tables.
+#' @param digits Number of digits used in the tables (default value used by the plot functions).
 #' @param scale_var_decomp boolean indicating if the variance decomposition table should be rescaled to 100.
 #' @param remove_others_contrib boolean indication if the "Others" contribution (i.e.: the pre-adjustment contribution)
 #' should be removed from the variance decomposition table.
 #' @param add_obs_to_forecast Boolean indicating if the last observed values should be added to the forecast table (for the plot).
 #' @param td_effect Boolean indicating if the residual trading days effect test should be printed.
 #' By default (`td_effect = NULL`) the test is only printed for monthly series.
+#' @param n_last_outliers number of last outliers to be printed (by default `n_last_outliers = 0` for
+#' `simple_dashboard()` and `n_last_outliers = 4` for `simple_dashboard2()`).
+#' @param digits_outliers number of digits used in the table of outliers.
+#' @param columns_outliers informations about outliers that should be printed in the summary table.
+#' Can be either a vector of characters among `c("Estimate", "Std. Error", "T-stat", "Pr(>|t|)")`;
+#' or an vector of integer: `1` corresponding to the estimate coefficient (`"Estimate"`),
+#' `2` corresponding to the standard deviation error (`"Std. Error"`),
+#' `3` corresponding to the t-statistic (`"T-stat"`) or
+#' `4` corresponding to the p-value (`"Pr(>|t|)"`).
+#' By default only the estimate coefficients and the t-statistics are printed
+#' (`columns_outliers = c("Estimate", "T-stat")`).
+#' @param order_outliers order of the outliers in case of several outliers at the same date.
+#' @param ... other parameters passed to `simple_dashboard()`.
+#'
+#' @details
+#' The colors of the tables depend on the status of each statistic (see [dashboard_colors()]):
+#' - Q-statistics (X-13 only): `"good"` if lower than 1 and `"bad"` otherwise;
+#' - seasonality tests on the linearised series: `"good"` if the p-value is lower than 0.01
+#' (seasonality detected), `"uncertain"` if it is between 0.01 and 0.05 and `"bad"` otherwise;
+#' - residual seasonality and residual trading days effects tests: `"bad"` if the p-value is lower than 0.01,
+#' `"uncertain"` if it is between 0.01 and 0.05 and `"good"` otherwise.
+#' For the combined seasonality tests, `"Present"` (seasonality detected) is `"good"` on the linearised
+#' series and `"bad"` on the seasonally adjusted series.
 #'
 #' @examples
 #' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
@@ -22,6 +46,8 @@
 #' plot(dashboard_data, main = "Simple dashboard")
 #' dashboard_data2 <- simple_dashboard2(sa_model)
 #' plot(dashboard_data2, main = "Simple dashboard with outliers")
+#' # With ggplot2
+#' autoplot(dashboard_data2, main = "Simple dashboard with outliers")
 #' @importFrom stats ts.union
 #' @importFrom utils tail
 #' @export
@@ -29,67 +55,91 @@ simple_dashboard <- function(x, context = NULL, digits = 2,
                              scale_var_decomp = FALSE,
                              remove_others_contrib = FALSE,
                              add_obs_to_forecast = TRUE,
-                             td_effect = NULL) {
+                             td_effect = NULL,
+                             n_last_outliers = 0,
+                             digits_outliers = digits,
+                             columns_outliers = c("Estimate", "T-stat"),
+                             order_outliers = c("AO", "LS", "TC", "SO")) {
   x <- get_jmod(x, context = context)
   if (is.null(x))
     return(NULL)
-  nb_format <- paste0("%.", digits, "f")
+  series <- sa_series(x, add_obs_to_forecast = add_obs_to_forecast)
+  last_date <- format(tail(time_to_date(ggdemetra3::raw(x)), 1), format = "%Y-%m")
+  if (is.null(td_effect))
+    td_effect <- frequency(series) == 12
 
-  # Raw, trend, sa
-  data_plot <- list(y = ggdemetra3::raw(x),
-                    t = ggdemetra3::trendcycle(x),
-                    sa = ggdemetra3::seasonaladj(x),
-                    y_f = ggdemetra3::raw(x, forecast = TRUE),
-                    t_f = ggdemetra3::trendcycle(x, forecast = TRUE),
-                    sa_f = ggdemetra3::seasonaladj(x, forecast = TRUE))
+  res <- list(series = series,
+              siratio = ggdemetra3::siratio(x),
+              summary = dashboard_summary(x),
+              decomposition = dashboard_decomposition(x,
+                                                      scale_var_decomp = scale_var_decomp,
+                                                      remove_others_contrib = remove_others_contrib),
+              tests = dashboard_tests(x, td_effect = td_effect),
+              outliers = dashboard_outliers(x, n_last_outliers = n_last_outliers,
+                                            columns_outliers = columns_outliers,
+                                            order_outliers = order_outliers),
+              show_outliers = n_last_outliers > 0,
+              last_date = last_date,
+              digits = digits,
+              digits_outliers = digits_outliers)
+  class(res) <- c("simple_dashboard")
+  res
+}
 
-  last_date <- tail(time_to_date(data_plot[[1]]), 1)
-  last_date <- format(last_date, format = "%Y-%m")
+#' @rdname simple_dashboard
+#' @export
+simple_dashboard2 <- function(x, ..., n_last_outliers = 4) {
+  simple_dashboard(x, ..., n_last_outliers = n_last_outliers)
+}
 
-  data_plot <- do.call(ts.union, data_plot)
+# Raw series, trend and seasonally adjusted series (with forecasts)
+sa_series <- function(x, add_obs_to_forecast = TRUE) {
+  data <- list(y = ggdemetra3::raw(x),
+               t = ggdemetra3::trendcycle(x),
+               sa = ggdemetra3::seasonaladj(x),
+               y_f = ggdemetra3::raw(x, forecast = TRUE),
+               t_f = ggdemetra3::trendcycle(x, forecast = TRUE),
+               sa_f = ggdemetra3::seasonaladj(x, forecast = TRUE))
+  data <- data[!vapply(data, function(s) is.null(s) || length(s) == 0, logical(1))]
+  data <- do.call(ts.union, data)
   # add observed data for plots
-  if (add_obs_to_forecast)
-    data_plot[which(is.na(data_plot[,"y"]))[1]-1, c("y_f", "t_f", "sa_f")] <-
-    data_plot[which(is.na(data_plot[,"y"]))[1]-1, c("y", "t", "sa")]
+  if (add_obs_to_forecast && all(c("y_f", "t_f", "sa_f") %in% colnames(data))) {
+    i_last <- which(is.na(data[, "y"]))[1] - 1
+    if (!is.na(i_last) && i_last > 0)
+      data[i_last, c("y_f", "t_f", "sa_f")] <- data[i_last, c("y", "t", "sa")]
+  }
+  data
+}
 
-  # Global info on model
-  arima_ord <- sarima_orders_ch(x)
-  ntd <- rjd3toolkit::result(x, "regression.ntd") # nombre de JO
-  is_easter <- !is.null(rjd3toolkit::result(x, "nmh"))
-
-  est_span <- sprintf("Estimation span: %s to %s\n%s observations",
-                      span2text(rjd3toolkit::result(x, "regression.espan.start")),
-                      span2text(rjd3toolkit::result(x, "regression.espan.end")),
-                      rjd3toolkit::result(x, "regression.espan.n")
+dashboard_summary <- function(x) {
+  list(
+    span_start = span2text(rjd3toolkit::result(x, "regression.espan.start")),
+    span_end = span2text(rjd3toolkit::result(x, "regression.espan.end")),
+    nobs = rjd3toolkit::result(x, "regression.espan.n"),
+    log = rjd3toolkit::result(x, "log") != 0,
+    ntd = rjd3toolkit::result(x, "regression.ntd"),
+    easter = !is.null(rjd3toolkit::result(x, "nmh")),
+    nout = rjd3toolkit::result(x, "regression.nout"),
+    arima = sarima_orders_ch(x)
   )
-  transform <- ifelse(rjd3toolkit::result(x, "log") == 0,
-                      "Series hasn't been transformed",
-                      "Series has been log-transformed")
-  tde <- sprintf("%s\n%s",
-                 ifelse(ntd==0, "No trading days effect",
-                        sprintf("Trading days effect (%s)", ntd)),
-                 ifelse(is_easter, "Easter effect",
-                        "No easter effect"))
-  # nb outliers
-  out <- sprintf("%s detected outliers", rjd3toolkit::result(x, "regression.nout"))
-  summary_text <- c(est_span, transform, tde, out, arima_ord)
+}
 
-
-  # Stats on quality of decomposition
-  qstats <- list2DF(rjd3toolkit::user_defined(x, c("m-statistics.q", "m-statistics.q-m2")))
-  colnames(qstats) <- c("Q", "Q-M2")
-  # Stats on variance decomp
-  var_decomp <- list2DF(
-    rjd3toolkit::user_defined(
-      x,
-      c("variancedecomposition.cycle",
-        "variancedecomposition.seasonality",
-        "variancedecomposition.irregular",
-        "variancedecomposition.tdh",
-        "variancedecomposition.others",
-        "variancedecomposition.total"))
-  )
-  colnames(var_decomp) <- c("Cycle", "Seasonal", "Irregular", "TDH", "Others", "Total")
+dashboard_decomposition <- function(x, scale_var_decomp = FALSE, remove_others_contrib = FALSE) {
+  qstats <- unlist(rjd3toolkit::user_defined(x, c("m-statistics.q", "m-statistics.q-m2")))
+  if (length(qstats) == 2) {
+    names(qstats) <- c("Q", "Q-M2")
+  } else {
+    qstats <- NULL # TRAMO-SEATS
+  }
+  var_decomp <- unlist(rjd3toolkit::user_defined(
+    x,
+    c("variancedecomposition.cycle",
+      "variancedecomposition.seasonality",
+      "variancedecomposition.irregular",
+      "variancedecomposition.tdh",
+      "variancedecomposition.others",
+      "variancedecomposition.total")))
+  names(var_decomp) <- c("Cycle", "Seasonal", "Irregular", "TDH", "Others", "Total")
   if (remove_others_contrib) {
     var_decomp <- var_decomp[-5]
     i_total <- length(var_decomp)
@@ -100,228 +150,65 @@ simple_dashboard <- function(x, context = NULL, digits = 2,
     var_decomp[-i_total] <- var_decomp[-i_total] / sum(var_decomp[-i_total])
     var_decomp[i_total] <- 1
   }
-  var_decomp <- var_decomp * 100
-
-  # Tests on linearised series
-  liste_ind_seas <- c("F-test" = "diagnostics.seas-lin-f",
-                      "QS-test" = "diagnostics.seas-lin-qs",
-                      "Kruskal-Wallis" = "diagnostics.seas-lin-kw",
-                      "Friedman" = "diagnostics.seas-lin-friedman",
-                      "Combined" = "diagnostics.seas-lin-combined")
-  # residuals tests
-  liste_ind_res_seas <- c("F-test" = "diagnostics.seas-sa-f",
-                          "QS-test" = "diagnostics.seas-sa-qs",
-                          "Kruskal-Wallis" = "diagnostics.seas-sa-kw",
-                          "Friedman" = "diagnostics.seas-sa-friedman",
-                          "Combined" = "diagnostics.seas-sa-combined")
-
-  liste_ind_res_jo <-
-    c("Residual TD" = "diagnostics.td-sa-last")
-  seas_test <- list2DF(lapply(rjd3toolkit::user_defined(x, liste_ind_seas), function(x) {
-    if(length(x) > 1)
-      x <- sprintf(nb_format, x$pvalue)
-    x
-  }))
-  seas_res_test <- list2DF(lapply(rjd3toolkit::user_defined(x, liste_ind_res_seas), function(x) {
-    if(length(x) > 1)
-      x <- sprintf(nb_format, x$pvalue)
-    x
-  }))
-  td_res_test <- data.frame(sprintf(nb_format, rjd3toolkit::result(x, liste_ind_res_jo)$pvalue),
-                            "", "", "", "")
-  names(seas_test) <- names(seas_res_test) <-
-    names(td_res_test) <- names(liste_ind_seas)
-  all_tests <- rbind(seas_test, seas_res_test,
-                     td_res_test)
-  rownames(all_tests) <- c("Seasonality",
-                           "Residual Seasonality",
-                           "Residual TD effect")
-  # On calcule les couleurs
-  color_test <- rbind(c(ifelse(seas_test[,-5] < 0.05,  "#A0CD63", "red"),
-                        switch(seas_test[,5], "Present" = "#A0CD63",
-                               "None" = "red", "orange")),
-                      c(ifelse(seas_res_test[,-5] < 0.05,  "red", "#A0CD63"),
-                        switch(seas_res_test[,5], "Present" = "red",
-                               "None" = "#A0CD63", "orange")),
-                      c(ifelse(td_res_test[,1] < 0.05,  "red", "#A0CD63"),
-                        rep("white", 4)))
-
-  if (is.null(td_effect))
-    td_effect <- frequency(data_plot) == 12
-  if (!td_effect) {
-    all_tests <- all_tests[-3,]
-    color_test<- color_test[-3,]
-  }
-  decomp_stats_color <- c(sapply(qstats, function(x) ifelse(x < 1, "#A0CD63", "red")),
-                          "white",
-                          rep("grey90", ncol(var_decomp)
-                          ))
-  qstats[,] <- lapply(qstats, sprintf, fmt = nb_format)
-  var_decomp[,] <- lapply(var_decomp, sprintf, fmt = nb_format)
-
-  if (nrow(qstats) == 0) {
-    # TRAMO-SEATS
-    decomp_stats <- var_decomp
-    decomp_stats_color <- unlist(decomp_stats_color[-c(1:3)])
-  } else {
-    # X-13
-    decomp_stats <- cbind(qstats, "   " , var_decomp)
-    colnames(decomp_stats)[ncol(qstats)+1] <- "   "
-  }
-
-  res <- list(main_plot = data_plot,
-              siratio_plot = ggdemetra3::siratio(x),
-              summary_text = summary_text,
-              decomp_stats = list(table = decomp_stats,
-                                  colors = decomp_stats_color),
-              residuals_tests = list(table = all_tests,
-                                     colors = color_test),
-              last_date = last_date)
-  class(res) <- c("simple_dashboard")
-  res
+  list(qstats = qstats, var_decomp = var_decomp * 100)
 }
-#' Plot a simple seasonal adjustment dashboard
-#'
-#' Function to plot a simple dashboard of a seasonal adjustment model.
-#'
-#' @param x A `simple_dashboard` object.
-#' @param main Main title.
-#' @param subtitle Subtitle.
-#' @param reference_date Boolean indicating if the reference date should be printed.
-#' @param color_series Color of the raw time series, the trend and the seasonally adjusted component.
-#' @param ... Other unused parameters.
-#'
-#' @examples
-#' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
-#' sa_model <- rjd3x13::x13(data)
-#' dashboard_data <- simple_dashboard(sa_model)
-#' plot(dashboard_data, main = "Simple dashboard")
-#' dashboard_data2 <- simple_dashboard2(sa_model)
-#' plot(dashboard_data2, main = "Simple dashboard with outliers")
-#' @seealso \code{\link{simple_dashboard}}.
-#' @importFrom graphics box layout legend mtext par plot.new text
-#' @export
 
-plot.simple_dashboard <- function(x, main = "Simple Dashboard with outliers",
-                                  subtitle = NULL,
-                                  color_series = c(y = "#F0B400", t = "#1E6C0B", sa = "#155692"),
-                                  reference_date = TRUE,...){
-  main_plot = x$main_plot
-  siratio_plot = x$siratio_plot
-  summary_text = x$summary_text
-  decomp_stats = x$decomp_stats
-  residuals_tests = x$residuals_tests
-  last_date = x$last_date
-  outliers = x$outliers
-
-  # Check if it is simple_dashboard (TRUE) or simple_dashboard2
-  is_sd <- is.null(outliers)
-  def.par <- par(no.readonly = TRUE)
-
-  if (is_sd) {
-    # simple_dashboard
-    nf <- layout(matrix(c(rep(1,8),
-                          rep(2,4),rep(3,4),
-                          rep(4,3), rep(5,5),
-                          rep(4,3), rep(6,5)),ncol = 8,byrow = T),
-                 heights = c(0.2,2.5,0.5,1.3))
-    cex <- 1
-    y_res_test <- 0.5 # y position of the residuals tests table smaller
-  } else {
-    # simple_dashboard2
-    nf <- layout(matrix(c(rep(1,8),
-                          rep(2,4), rep(3,4),
-                          rep(4,3), rep(5,5),
-                          rep(4,3), rep(6,5),
-                          rep(7,3), rep(8,5)),ncol = 8,byrow = T),
-                 heights = c(0.2,2.2,0.5,0.2,0.7))
-    cex <- 0.95 # smaller text
-    y_res_test <- 0.8
+dashboard_tests <- function(x, td_effect = TRUE) {
+  tests <- c("F-test" = "f", "QS-test" = "qs", "Kruskal-Wallis" = "kw", "Friedman" = "friedman")
+  get_pval <- function(id) {
+    res <- rjd3toolkit::user_defined(x, id)[[1]]
+    if (is.list(res)) res$pvalue else NA_real_
   }
-
-  # layout.show(nf)
-  on.exit({
-    par(def.par)
-  })
-
-  oma.saved <- par("oma")
-  par(oma = rep.int(0, 4))
-  # par(oma = oma.saved)
-  o.par <- par(mar = rep.int(0, 4))
-  plot.new()
-  box(which = "inner")
-
-  box()
-  text(0.5, 0.5, main, font = 2,cex = 1.2)
-  par(o.par)
-
-  par(mai = c(0, 0.4, 0.2, 0.1))
-  stats::plot.ts(main_plot,plot.type = "single",
-                 col = rep(color_series, 2),
-                 lty = rep(c(1,2), each = 3),
-                 xlab = NULL,
-                 ylab = NULL,
-                 main = NULL
+  pvalues <- rbind(
+    "Seasonality" = vapply(sprintf("diagnostics.seas-lin-%s", tests), get_pval, numeric(1)),
+    "Residual Seasonality" = vapply(sprintf("diagnostics.seas-sa-%s", tests), get_pval, numeric(1))
   )
-  legend("bottomright", legend = names(color_series),
-         col = color_series, lty = 1,
-         pch = NA_integer_,
-         inset = c(0,1), xpd = TRUE, horiz=TRUE, bty = "n")
-  par(mai = c(0.0, 0.2, 0.2, 0.4))
-  ggdemetra3::siratioplot(siratio_plot, main = NULL)
+  colnames(pvalues) <- names(tests)
+  combined <- c("Seasonality" = rjd3toolkit::user_defined(x, "diagnostics.seas-lin-combined")[[1]],
+                "Residual Seasonality" = rjd3toolkit::user_defined(x, "diagnostics.seas-sa-combined")[[1]])
+  combined[vapply(combined, is.null, logical(1))] <- NA_character_
+  combined <- unlist(combined)
+  td <- if (td_effect) rjd3toolkit::result(x, "diagnostics.td-sa-last")$pvalue else NULL
+  list(pvalues = pvalues, combined = combined, residual_td = td)
+}
 
-
-  par(mai = c(0.4, 0.2, 0.2, 0))
-  par(mar = rep.int(0.4, 4))
-  plot.new()
-  legend("topleft", legend = c(NA, summary_text),
-         bty = "n", text.font =  2, inset = c(0),
-         cex = cex,
-         xpd = TRUE)
-
-
-  par(mar = rep(2, 4))
-  par(mai = c(0, 0.2, 0, 0.2))
-
-  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-       axes = FALSE)
-  plotrix::addtable2plot(0.5, 0,
-                         decomp_stats$table, bty = "o", display.rownames = FALSE, hlines = TRUE,
-                         vlines = TRUE,bg = decomp_stats$colors, xjust = 0.5, yjust = 1)
-
-  # Empty plot
-  if(! is_sd) {
-    plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-         axes = FALSE)
-    plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-         axes = FALSE)
-    par(mai = c(0, 0.2, 0.2, 0.2))
+dashboard_outliers <- function(x, n_last_outliers = 4,
+                               columns_outliers = c("Estimate", "T-stat"),
+                               order_outliers = c("AO", "LS", "TC", "SO")) {
+  all_columns <- c("Estimate", "Std. Error", "T-stat", "Pr(>|t|)")
+  if (is.numeric(columns_outliers)) {
+    columns_outliers <- all_columns[columns_outliers]
+  } else {
+    columns_outliers <- match.arg(columns_outliers, all_columns, several.ok = TRUE)
   }
+  nout <- rjd3toolkit::result(x, "regression.nout")
+  if (n_last_outliers <= 0 || is.null(nout) || nout == 0)
+    return(NULL)
+  outliers <- do.call(rbind, rjd3toolkit::user_defined(x, sprintf("regression.out(%i)", seq_len(nout))))
+  colnames(outliers) <- all_columns[seq_len(ncol(outliers))]
+  # sort outliers by dates (most recent first)
+  dates_out <- outliers_to_dates(rownames(outliers))
+  type <- factor(dates_out$type, levels = order_outliers)
+  outliers <- outliers[order(dates_out$year, dates_out$period, -as.integer(type), decreasing = TRUE), , drop = FALSE]
+  outliers <- outliers[seq_len(min(n_last_outliers, nrow(outliers))), columns_outliers, drop = FALSE]
+  data.frame(Outlier = rownames(outliers), outliers, check.names = FALSE, row.names = NULL)
+}
 
-  if(! is_sd && ! is.null(outliers$table)) {
-
-    plotrix::addtable2plot(0.5, 0.7,
-                           outliers$table,
-                           bg = outliers$colors,
-                           bty = "o",
-                           display.rownames = FALSE, hlines = TRUE,
-                           vlines = TRUE,
-                           xjust = 0.5, yjust = 0.5)
+# Parse the names of the outliers: "AO (2000-07)", "AO (2000-07-01)", "AO (2000-Q2)" or "AO (VII-2000)"
+outliers_to_dates <- function(name_out) {
+  types <- gsub(" .*", "", name_out)
+  dates <- gsub("^.*\\((.*)\\).*$", "\\1", name_out)
+  year <- period <- rep(NA_real_, length(dates))
+  iso <- grepl("^\\d{4}-", dates)
+  if (any(iso)) {
+    parts <- strsplit(dates[iso], "-")
+    year[iso] <- as.numeric(vapply(parts, `[`, character(1), 1))
+    period[iso] <- as.numeric(gsub("\\D", "", vapply(parts, `[`, character(1), 2)))
   }
-
-  plot(1, type = "n", xlab = "", ylab = "", xlim = c(0, 1), ylim = c(0, 1),
-       axes = FALSE)
-  par(mai = c(0, 0.2, 0.2, 0.2))
-  plotrix::addtable2plot(0.5, y_res_test,
-                         residuals_tests$table, bty = "o",
-                         display.rownames = TRUE, hlines = TRUE,
-                         vlines = TRUE,
-                         bg = residuals_tests$colors,
-                         xjust = 0.5, yjust = 0.5)
-  if (reference_date)
-    mtext(sprintf("Reference Date: %s",last_date), side = 3, line = -3,
-          outer = TRUE,font = 3,cex = 0.7,at = 0.95, adj = 1)
-  mtext(subtitle, side = 3, line = -3,
-        outer = TRUE,font = 3,cex = 0.7,at = 0.1, adj = 1)
-  invisible()
+  if (any(!iso)) {
+    parts <- strsplit(dates[!iso], "-")
+    period[!iso] <- as.numeric(utils::as.roman(vapply(parts, `[`, character(1), 1)))
+    year[!iso] <- as.numeric(vapply(parts, `[`, character(1), 2))
+  }
+  data.frame(year = year, period = period, type = types)
 }

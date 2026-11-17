@@ -17,10 +17,10 @@
 #' \item Residual seasonality: qs (auto-correlations at seasonal lags) and f (Friedman) test on seasonal adjusted series. Colors: red if p-value \eqn{\le} 0.01, yellow if 0.01 < p-value \eqn{\le} 0.05 and green if p-value > 0.05.
 #' \item Residual trading-days effects: f (Friedman) test on seasonal adjusted serie.  Colors: red if p-value \eqn{\le} 0.01, yellow if 0.01 < p-value \eqn{\le} 0.05 and green if p-value > 0.05.
 #' \item Independence of RegARIMA residuals: Ljung-Box test. Colors: red if p-value \eqn{\le} 0.01, yellow if 0.01 < p-value \eqn{\le} 0.05 and green if p-value > 0.05.
-#' \item Recent outliers on last (t) and penultimate (t-1) observation. Colors: Red if there is an extreme value (only for X13: when table C17 equals to 0), yellow if there is an outlier in the RegARIMA model and green otherwise.
+#' \item Recent outliers on last (t) and penultimate (t-1) observation. Colors: Red (`"bad"`) if there is an extreme value (only for X13: when table C17 equals to 0), yellow (`"uncertain"`) if there is an outlier in the RegARIMA model and green (`"good"`) otherwise.
 #' }
 #' \item Estimated Patterns and Anticipated Movements (middle panel): estimated trading day, moving holiday and seasonal pattern.  It presents expected movement in unadjusted series based on the current and previous period.
-#' \item Net Effect of Seasonal Adjustment (bottom panel): movement in the raw series, compared to typical ranges centered around “neutral” value (when the seasonal adjusted series of the last period is equal to the penultimate period).  It also shows the movement in the seasonally adjusted series, compared to typical ranges.
+#' \item Net Effect of Seasonal Adjustment (bottom panel): movement in the raw series, compared to typical ranges centered around "neutral" value (when the seasonal adjusted series of the last period is equal to the penultimate period).  It also shows the movement in the seasonally adjusted series, compared to typical ranges.
 #' }
 #'
 #' @references
@@ -63,6 +63,8 @@ sc_dashboard <- function(x, n_recent_obs = 24, context = NULL){
 #' @param raw_color color for the raw series.
 #' @param sa_color color for the seasonal adjusted series.
 #' @param trend_color color for the trend.
+#' @param colors colors of the summary of key diagnostics according to the status of each statistic
+#' (see [dashboard_colors()]).
 #' @param ... other parameters (unused).
 #'
 #' @details
@@ -77,10 +79,10 @@ sc_dashboard <- function(x, n_recent_obs = 24, context = NULL){
 #' \item Residual seasonality: qs (auto-correlations at seasonal lags) and f (Friedman) test on seasonal adjusted series. Colors: red if p-value < 0.01, yellow if 0.01 < p-value < 0.05 and green if p-value > 0.05.
 #' \item Residual trading-days effects: f (Friedman) test on seasonal adjusted serie.  Colors: red if p-value < 0.01, yellow if 0.01 < p-value < 0.05 and green if p-value > 0.05.
 #' \item Independence of RegARIMA residuals: Ljung-Box test. Colors: red if p-value < 0.01, yellow if 0.01 < p-value < 0.05 and green if p-value > 0.05.
-#' \item Recent outliers on last (t) and penultimate (t-1) observation. Colors: Red if there is an extreme value (only for X13: when table C17 equals to 0), yellow if there is an outlier in the RegARIMA model and green otherwise.
+#' \item Recent outliers on last (t) and penultimate (t-1) observation. Colors: Red (`"bad"`) if there is an extreme value (only for X13: when table C17 equals to 0), yellow (`"uncertain"`) if there is an outlier in the RegARIMA model and green (`"good"`) otherwise.
 #' }
 #' \item Estimated Patterns and Anticipated Movements (middle panel): estimated trading day, moving holiday and seasonal pattern.  It presents expected movement in unadjusted series based on the current and previous period.
-#' \item Net Effect of Seasonal Adjustment (bottom panel): movement in the raw series, compared to typical ranges centered around “neutral” value (when the seasonal adjusted series of the last period is equal to the penultimate period).  It also shows the movement in the seasonally adjusted series, compared to typical ranges.
+#' \item Net Effect of Seasonal Adjustment (bottom panel): movement in the raw series, compared to typical ranges centered around "neutral" value (when the seasonal adjusted series of the last period is equal to the penultimate period).  It also shows the movement in the seasonally adjusted series, compared to typical ranges.
 #' }
 #'
 #' @references
@@ -101,102 +103,43 @@ plot.sc_dashboard <- function(x, main = "Seasonal Adjustment Dashboard",
                               reference_date = TRUE,
                               raw_color = "#33A02C",
                               sa_color = "#E31A1C",
-                              trend_color = "black", ...){
-    r_history <- (x$recent_history)
-    diagnostics <- (x$summary_diagnostics)
-    td <- (x$trading_day_pattern)
-    mhe <- (x$moving_holiday_pattern)
-    seas <- (x$seasonal_pattern)
-    net_effects <- (x$net_effect)
-    last_date <- x$last_date
-
+                              trend_color = "black",
+                              colors = dashboard_colors(), ...){
     def.par <- par(no.readonly = TRUE)
-
-    # nf <- layout(matrix(c(rep(1,3),rep(2,3),
-    #                       rep(3,2), rep(5,2), rep(7,2),
-    #                       rep(4,2), rep(6,2), rep(8,2),
-    #                       rep(9,2), rep(10,2), rep(11,2)),4,6,byrow = T),heights = c(4,4,1,4))
-    nf <- layout(matrix(c(rep(1,6),
-                          rep(2,3), rep(3,3),
-                          rep(4,6),
-                          rep(5,2), rep(7,2), rep(9,2),
-                          rep(6,2), rep(8,2), rep(10,2),
-                          rep(11,6),
-                          rep(12,2), rep(13,2), rep(14,2)),7,6,byrow = T),
-                 heights = c(0.3,4,0.3,4,1,0.3,4))
-    on.exit({
-        par(def.par)
-    })
-    # layout.show(nf)
-    # grid.rect(x = unit(0.42, "npc"), y = unit(0.35, "npc"),
-    #           width = unit(0.2, "npc"), height = unit(0.2, "npc"))
-    oma.saved <- par("oma")
-    par(oma = rep.int(0, 4))
-    par(oma = oma.saved)
-    o.par <- par(mar = rep.int(0, 4))
-    plot.new()
-    box(which = "inner")
-
-    box()
-    text(0.5, 0.5, main, font = 2,cex = 1.2)
-    par(o.par)
+    on.exit(par(def.par))
+    layout(matrix(c(rep(1, 6),
+                    rep(2, 3), rep(3, 3),
+                    rep(4, 6),
+                    rep(5, 2), rep(7, 2), rep(9, 2),
+                    rep(6, 2), rep(8, 2), rep(10, 2),
+                    rep(11, 6),
+                    rep(12, 2), rep(13, 2), rep(14, 2)), 7, 6, byrow = TRUE),
+           heights = c(0.3, 4, 0.3, 4, 1, 0.3, 4))
+    base_dashboard_title(main)
 
     par(mai = c(0.5, 0.4, 0.4, 0.1))
-    plot(r_history, raw_color = raw_color,
+    plot(x$recent_history, raw_color = raw_color,
          sa_color = sa_color,
          trend_color = trend_color)
-    # plot(0);
-    # l=locator(2,type='n');
-    # lines(l, type='l');
-    # # plot.recent_history()
     par(mai = c(0.0, 0, 0, 0.42))
-    plot(diagnostics)
+    plot(x$summary_diagnostics, colors = colors)
 
-
-
-    # oma.saved <- par("oma")
-    # par(oma = rep.int(0, 4))
-    # par(oma = oma.saved)
-
-    o.par <- par(mai = c(1.02, 0.82, 0.82, 0.42),mar = rep.int(0, 4))
-    plot.new()
-    box()
-    text(0.5, 0.5, "Net Effect of Seasonal Adjustment",font = 2,cex = 1.2)
-    par(o.par)
-
+    base_section_title("Estimated Patterns and Anticipated Movements")
     par(mai = c(0.4, 0.82, 0.5, 0.42))
-    plot(td)
-    # par(mai = c(0.2, 0.82, 0.5, 0.42))
-    plot(mhe)
-    # par(mai = c(0.2, 0.82, 0.5, 0.42))
-    plot(seas)
+    plot(x$trading_day_pattern)
+    plot(x$moving_holiday_pattern)
+    plot(x$seasonal_pattern)
 
-    o.par <- par(mai = c(1.02, 0.82, 0.82, 0.42), mar = rep.int(0, 4))
-    plot.new()
-    box()
-    text(0.5, 0.5, "Estimated Patterns and Anticipated Movements",font = 2,cex = 1.2)
-    par(o.par)
-
-    # mtext("Estimated Patterns and Anticipated Movements", side = 3, line = -20,
-    #       outer = TRUE, font = 2)
-
+    base_section_title("Net Effect of Seasonal Adjustment")
     par(mai = c(0.4, 0.4, 0.5, 0.2))
-    plot(net_effects, raw_color = raw_color,
-         trend_color = trend_color)
-    # mtext("Net Effect of Seasonal Adjustment", side = 3, line = -46,
-    #       outer = TRUE,font = 2)
-    # mtext("Seasonal Adjustment Dashboard", side = 3, line = -2,
-    #       outer = TRUE,font = 2,cex = 1.2)
-    if (reference_date)
-        mtext(sprintf("Reference Date: %s",last_date), side = 3, line = -3,
-              outer = TRUE,font = 3,cex = 0.7,at = 0.95, adj = 1)
-    mtext(subtitle, side = 3, line = -3,
-          outer = TRUE,font = 3,cex = 0.7,at = 0.1, adj = 1)
+    plot(x$net_effect, raw_color = raw_color, sa_color = sa_color)
+    base_dashboard_subtitle(subtitle, if (reference_date) x$last_date)
     invisible()
 }
-
-add_box <- function(){
-    o.par <- par(mai = c(1.02, 0.82, 0.82, 0.42),mar = rep.int(0, 4))
+base_section_title <- function(title) {
+    o.par <- par(mai = c(1.02, 0.82, 0.82, 0.42), mar = rep.int(0, 4))
+    on.exit(par(o.par))
+    plot.new()
     box()
-    par(o.par)
+    text(0.5, 0.5, title, font = 2, cex = 1.2)
 }

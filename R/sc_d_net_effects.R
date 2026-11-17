@@ -11,10 +11,9 @@ net_effect <- function(x){
   tde <- data[["tde"]]
   mhe <- data[["mhe"]]
   is_multiplicative <- as.logical(data[["log"]])
-  if (is_multiplicative) {
-    tde <- exp(tde)
-    mhe <- exp(mhe)
-  }
+  # with rjd3 (>= 3.9) the calendar effects of multiplicative models are ratios
+  if (is.null(tde)) tde <- s * 0 + if (is_multiplicative) 1 else 0
+  if (is.null(mhe)) mhe <- s * 0 + if (is_multiplicative) 1 else 0
 
   observed_sa <- tail(sa, 2)
   observed_y <- tail(y, 2)
@@ -28,9 +27,9 @@ net_effect <- function(x){
   neutral_line_sa <- rep(observed_sa[1], 2)
 
   if (is_multiplicative) {
-    s <- s / (exp(tde + mhe))
-    observed_td <- observed_y / exp(observed_tde)
-    observed_cal <- observed_y / exp(observed_tde + observed_mhe)
+    s <- s / (tde * mhe)
+    observed_td <- observed_y / observed_tde
+    observed_cal <- observed_y / (observed_tde * observed_mhe)
 
     neutral_line_y <- observed_y * c(1, observed_sa[1] / observed_sa[2])
     neutral_line_td <- observed_td * c(1, observed_sa[1] / observed_sa[2])
@@ -54,7 +53,8 @@ net_effect <- function(x){
   upper_bound_y <- neutral_line_y * c(1, 1 + EM)
   lower_bound_y <- neutral_line_y * c(1, 1 - EM)
 
-  y_movement <- c("decrease", "increase")[(observed_y_evol > 0) + 1]
+  y_movement <- direction(observed_y_evol)
+  period <- tolower(period_name(frequency(y)))
 
   neutral_line_y_evol <- (neutral_line_y[2] / neutral_line_y[1] - 1) * 100
   neutral_line_td_evol <- (neutral_line_td[2] / neutral_line_td[1] - 1) * 100
@@ -66,34 +66,32 @@ net_effect <- function(x){
   observed_s_evol <- neutral_line_cal_evol
 
 
-  neutral_y_movement <- c("decrease", "increase")[(neutral_line_y_evol > 0) + 1]
-  s_movement <- c("decrease", "increase")[(observed_s_evol > 0) + 1]
+  neutral_y_movement <- direction(neutral_line_y_evol)
+  s_movement <- direction(observed_s_evol)
 
-  neutral_cal_movement <- c("decrease", "increase")[(neutral_line_cal_evol > 0) + 1]
-
-  line1 <- sprintf("Observed %.1f%% raw %s from last month",
-                   abs(observed_y_evol), y_movement)
+  line1 <- sprintf("Observed %.1f%% raw %s from last %s",
+                   abs(observed_y_evol), y_movement, period)
   line2 <- sprintf("Neutral result requires %.1f%% raw %s",
                    abs(neutral_line_y_evol), neutral_y_movement)
-  line2 <- c(line2, "from last month:")
+  line2 <- c(line2, sprintf("from last %s:", period))
   if(round(tde_contrib, 1) == 0){
     line3 <- "No trading day effect"
   }else{
-    tde_contrib_movement <- c("decrease", "increase")[(tde_contrib > 0) + 1]
+    tde_contrib_movement <- direction(tde_contrib)
     line3 <- sprintf("Trading day effects represent %.1f%% raw %s",
                      abs(tde_contrib), tde_contrib_movement)
   }
   if (round(mhe_contrib, 1) == 0) {
     line4 <- "No moving holiday effect"
   }else{
-    mhe_contrib_movement <- c("decrease", "increase")[(mhe_contrib > 0) + 1]
+    mhe_contrib_movement <- direction(mhe_contrib)
     line4 <- sprintf("Moving holiday effects represent %.1f%% raw %s",
                      abs(mhe_contrib), mhe_contrib_movement)
   }
   line5 <- sprintf("Seasonal effects represent %.1f%% raw %s",
                    abs(observed_s_evol), s_movement)
-  line6 <- sprintf("SA movement of %+.1f%% from last month",
-                   observed_sa_evol)
+  line6 <- sprintf("SA movement of %+.1f%% from last %s",
+                   observed_sa_evol, period)
   res <- list(raw_data = list(observed = observed_y, neutral_line = neutral_line_y,
                               lower_bound = lower_bound_y, upper_bound = upper_bound_y,
                               frequency = frequency(y)),

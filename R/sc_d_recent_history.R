@@ -1,11 +1,7 @@
-recent_history <- function(x, n_recent_obs = 24, ...){
-  result <- ts.union(
-    ggdemetra3::raw(x),
-    t = ggdemetra3::trendcycle(x),
-    sa = ggdemetra3::seasonaladj(x)
-  )
-  colnames(result) <- c("y","t","sa")
-  if (!is.null(recent_history)) {
+recent_history <- function(x, n_recent_obs = 24, ...) {
+  result <- sa_series(x)[, c("y", "t", "sa")]
+  result <- stats::na.omit(result)
+  if (!is.null(n_recent_obs)) {
     start <- tail(time(result), n_recent_obs)[1]
     result <- ts(tail(result, n_recent_obs), start = start, frequency = frequency(result))
   }
