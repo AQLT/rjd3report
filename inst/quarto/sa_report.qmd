@@ -1,0 +1,48 @@
+---
+title: "Seasonal adjustment report"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    format-links: false
+  pdf:
+    toc: true
+    toc-depth: 2
+    papersize: a4
+    geometry: margin=2cm
+  typst:
+    toc: true
+    toc-depth: 2
+    papersize: a4
+    margin:
+      x: 2cm
+      y: 2cm
+  docx:
+    toc: true
+    toc-depth: 2
+params:
+  models: "models.rds"
+execute:
+  echo: false
+  warning: false
+  message: false
+knitr:
+  opts_chunk:
+    fig-width: 7
+    fig-height: 4
+---
+
+<!--
+Template of the seasonal adjustment report used by rjd3report::render_report().
+It can be copied with rjd3report::use_report_template() and customized:
+the models and the options of rjd3report::sa_report() are stored in the file `params$models`.
+-->
+
+```{r}
+#| label: sa-report
+library(rjd3report)
+data <- readRDS(params$models)
+do.call(sa_report, c(list(data$models), data$options))
+```
