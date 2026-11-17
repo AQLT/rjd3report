@@ -25,20 +25,19 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-rjd3report is an extension of the R packages around JDemetra+ 3.0 available at <https://github.com/rjdemetra/rjdemetra>
-The rjd3report package provides help to the quality assessment by producing different dashboards.
+rjd3report is an extension of the R packages around JDemetra+ 3.x available at <https://github.com/rjdverse>.
+The rjd3report package provides help to the quality assessment by producing different dashboards and reports (with [Quarto](https://quarto.org)) describing seasonal adjustment models.
 
 ## Installation
 
-rjd3report requires Java SE 17 or later version.
+rjd3report requires Java SE 21 or later version. To render reports, [Quarto](https://quarto.org) must also be installed.
 
 ```{r gh-installation, eval = FALSE}
 # Install development version from GitHub
 # install.packages("devtools")
-remots::install_github("AQLT/rjd3report")
+remotes::install_github("AQLT/rjd3report")
 ```
 
-If you have troubles with the installation of RJDemetra or rjdqa, check the [installation manual](https://github.com/jdemetra/rjdemetra/wiki/Installation-manual).
 
 
 # Usage
@@ -72,4 +71,24 @@ dashboard_data <- simple_dashboard(sa_mod)
 plot(dashboard_data, main = "Simple dashboard")
 dashboard_data2 <- simple_dashboard2(sa_mod)
 plot(dashboard_data2, main = "Simple dashboard with outlier")
+```
+
+
+## Reports
+
+`sa_preprocessing()`, `sa_decomposition()` and `sa_diagnostics()` describe a seasonal adjustment model; `sa_report()` gathers them (with plots) for one model, a list of models or a whole workspace.
+In a Quarto (or R Markdown) document, the results are rendered automatically whatever the output format (HTML, PDF with LaTeX or Typst, Word): no `results: asis` nor `format` argument needed.
+The tables are built with [tinytable](https://vincentarelbundock.github.io/tinytable/).
+
+```{r report, eval = FALSE}
+sa_ts <- rjd3tramoseats::tramoseats(y)
+# In a chunk of a Quarto document:
+sa_diagnostics(sa_mod)
+sa_report(list(X13 = sa_mod, `TRAMO-SEATS` = sa_ts))
+
+# Directly render a report from a Quarto template:
+render_report(list(X13 = sa_mod, `TRAMO-SEATS` = sa_ts), "report.html")
+render_report("path/to/workspace.xml", "report.pdf", output_format = "typst")
+# To customize the template:
+use_report_template("my_template.qmd")
 ```
