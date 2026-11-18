@@ -16,6 +16,7 @@ Depends:
 Imports:
     plotrix,
     rJava,
+    rjd3jars,
     rjd3toolkit (>= 3.9.0),
     rjd3x13 (>= 3.9.0),
     rjd3tramoseats (>= 3.9.0),
