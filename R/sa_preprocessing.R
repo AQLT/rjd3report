@@ -29,7 +29,7 @@
 #'
 #' @return An object of class `"rjd3report_block"` (see [print.rjd3report_block()]).
 #'
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' y <- rjd3toolkit::ABS$X0.2.09.10.M
 #' sa_x13 <- rjd3x13::x13(y)
 #' sa_preprocessing(sa_x13)

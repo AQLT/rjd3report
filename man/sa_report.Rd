@@ -79,6 +79,7 @@ output format.
 (see \code{\link[=report_template]{report_template()}}).
 }
 \examples{
+\dontshow{if (rjd3jars::check_java_version(silent = TRUE)) withAutoprint(\{ # examplesIf}
 y <- rjd3toolkit::ABS$X0.2.09.10.M
 sa_x13 <- rjd3x13::x13(y)
 sa_ts <- rjd3tramoseats::tramoseats(y)
@@ -98,4 +99,5 @@ if (quarto::quarto_available()) {
   render_report(ws, output_file, output_format = "typst")
 }
 }
+\dontshow{\}) # examplesIf}
 }

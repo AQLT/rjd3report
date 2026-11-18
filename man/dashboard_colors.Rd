@@ -27,6 +27,8 @@ Colors used in the tables of the dashboards (see \code{\link[=simple_dashboard]{
 of each statistic.
 }
 \examples{
+\dontshow{if (rjd3jars::check_java_version(silent = TRUE)) withAutoprint(\{ # examplesIf}
 dashboard_colors()
 dashboard_colors(palette = "classic")
+\dontshow{\}) # examplesIf}
 }

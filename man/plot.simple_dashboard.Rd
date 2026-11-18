@@ -63,6 +63,7 @@ With \code{autoplot()}, the tables keep their natural size (their font size is r
 and only the plots are resized.
 }
 \examples{
+\dontshow{if (rjd3jars::check_java_version(silent = TRUE)) withAutoprint(\{ # examplesIf}
 data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
 sa_model <- rjd3x13::x13(data)
 dashboard_data <- simple_dashboard(sa_model)
@@ -70,6 +71,7 @@ plot(dashboard_data, main = "Simple dashboard")
 dashboard_data2 <- simple_dashboard2(sa_model)
 plot(dashboard_data2, main = "Simple dashboard with outliers")
 autoplot(dashboard_data2, main = "Simple dashboard with outliers")
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link{simple_dashboard}}.

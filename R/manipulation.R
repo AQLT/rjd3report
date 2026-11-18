@@ -6,7 +6,7 @@
 #' @param x The model.
 #' @param ... Other unused parameters.
 #'
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' y <- rjd3toolkit::ABS$X0.2.09.10.M
 #' mod <- rjd3toolkit::sarima_estimate(y, order = c(0,1,1), seasonal = c(0,1,1))
 #' sarima_orders(mod)

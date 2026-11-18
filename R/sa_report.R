@@ -26,7 +26,7 @@
 #' @return `sa_report()` returns an object of class `"rjd3report_block"`
 #' (see [print.rjd3report_block()]).
 #'
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' y <- rjd3toolkit::ABS$X0.2.09.10.M
 #' sa_x13 <- rjd3x13::x13(y)
 #' sa_ts <- rjd3tramoseats::tramoseats(y)
@@ -297,7 +297,7 @@ render_report <- function(x,
 #' @param path the path of the copied template.
 #' @param overwrite boolean indicating if an existing file should be overwritten.
 #'
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' report_template()
 #' @export
 report_template <- function() {

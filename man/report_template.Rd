@@ -20,5 +20,7 @@ use_report_template(path = "sa_report.qmd", overwrite = FALSE)
 (and then used with \code{render_report(template = )}).
 }
 \examples{
+\dontshow{if (rjd3jars::check_java_version(silent = TRUE)) withAutoprint(\{ # examplesIf}
 report_template()
+\dontshow{\}) # examplesIf}
 }

@@ -39,7 +39,7 @@
 #' For the combined seasonality tests, `"Present"` (seasonality detected) is `"good"` on the linearised
 #' series and `"bad"` on the seasonally adjusted series.
 #'
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
 #' sa_model <- rjd3x13::x13(data)
 #' dashboard_data <- simple_dashboard(sa_model)

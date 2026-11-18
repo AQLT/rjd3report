@@ -7,7 +7,7 @@
 #' @param neutral color of the statistics without status (e.g. variance decomposition).
 #' @param palette `"pastel"` (default) or `"classic"` (colors of the previous versions).
 #' @return A named character vector.
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' dashboard_colors()
 #' dashboard_colors(palette = "classic")
 #' @export
@@ -128,7 +128,7 @@ summary_lines <- function(x, compact = FALSE) {
 #' @param decimal.mark the character used as decimal mark.
 #' @param ... Other unused parameters.
 #'
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
 #' sa_model <- rjd3x13::x13(data)
 #' dashboard_data <- simple_dashboard(sa_model)

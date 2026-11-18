@@ -28,7 +28,7 @@
 #'
 #' MATTHEWS S. (2016), "Quality Assurance of Seasonal Adjustment for a Large System of Time Series", 36th International Symposium on Forecasting Santander, Spain.
 #'
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
 #' sa_model <- rjd3x13::x13(data)
 #' sc_dashboard_data <- sc_dashboard(sa_model)
@@ -89,7 +89,7 @@ sc_dashboard <- function(x, n_recent_obs = 24, context = NULL){
 #' KIRCHNER R., LADIRAY D., MAZZI G. L. (2018), "Quality Measures and Reporting for Seasonal Adjustment", edited by G. L. Mazzi, co-edited by D. Ladiray, European Union, Luxembourg. \url{https://ec.europa.eu/eurostat/web/products-manuals-and-guidelines/-/KS-GQ-18-001}
 #'
 #' MATTHEWS S. (2016), "Quality Assurance of Seasonal Adjustment for a Large System of Time Series", 36th International Symposium on Forecasting Santander, Spain.
-#' @examples
+#' @examplesIf rjd3jars::check_java_version(silent = TRUE)
 #' data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
 #' sa_model <- rjd3x13::x13(data)
 #' dashboard_data <- sc_dashboard(sa_model)

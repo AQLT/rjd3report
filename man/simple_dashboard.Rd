@@ -76,6 +76,7 @@ series and \code{"bad"} on the seasonally adjusted series.
 }
 }
 \examples{
+\dontshow{if (rjd3jars::check_java_version(silent = TRUE)) withAutoprint(\{ # examplesIf}
 data <- window(rjd3toolkit::ABS$X0.2.09.10.M, start = 2003)
 sa_model <- rjd3x13::x13(data)
 dashboard_data <- simple_dashboard(sa_model)
@@ -84,4 +85,5 @@ dashboard_data2 <- simple_dashboard2(sa_model)
 plot(dashboard_data2, main = "Simple dashboard with outliers")
 # With ggplot2
 autoplot(dashboard_data2, main = "Simple dashboard with outliers")
+\dontshow{\}) # examplesIf}
 }

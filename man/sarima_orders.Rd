@@ -19,10 +19,12 @@ sarima_orders_ch(x, ...)
 \code{sarima_orders_ch()} returns a string.
 }
 \examples{
+\dontshow{if (rjd3jars::check_java_version(silent = TRUE)) withAutoprint(\{ # examplesIf}
 y <- rjd3toolkit::ABS$X0.2.09.10.M
 mod <- rjd3toolkit::sarima_estimate(y, order = c(0,1,1), seasonal = c(0,1,1))
 sarima_orders(mod)
 sarima_orders_ch(mod)
 mod_x13 <- rjd3x13::x13(y)
 sarima_orders_ch(mod_x13)
+\dontshow{\}) # examplesIf}
 }

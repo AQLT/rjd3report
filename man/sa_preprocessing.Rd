@@ -87,6 +87,7 @@ The tables are built with \pkg{tinytable}.
 The objects can also be printed in the console.
 }
 \examples{
+\dontshow{if (rjd3jars::check_java_version(silent = TRUE)) withAutoprint(\{ # examplesIf}
 y <- rjd3toolkit::ABS$X0.2.09.10.M
 sa_x13 <- rjd3x13::x13(y)
 sa_preprocessing(sa_x13)
@@ -98,6 +99,7 @@ sa_decomposition(sa_ts)
 
 # In a Quarto document, just write in a chunk:
 # sa_preprocessing(sa_x13, title_level = 3)
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \code{\link[=sa_report]{sa_report()}}, \code{\link[=render_report]{render_report()}}.
